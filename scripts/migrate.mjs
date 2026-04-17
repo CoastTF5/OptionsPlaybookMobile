@@ -8,8 +8,8 @@ const migrationsDir = join(__dirname, "..", "migrations");
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
-  console.error("DATABASE_URL is not set");
-  process.exit(1);
+  console.log("[migrate] DATABASE_URL not set — skipping migrations");
+  process.exit(0);
 }
 
 const client = new pg.Client({ connectionString });
