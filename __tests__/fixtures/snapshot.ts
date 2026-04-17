@@ -1,0 +1,51 @@
+export const validSnapshot = {
+  generated_at: "2026-04-17T14:15:32.000Z",
+  environment: "paper" as const,
+  ops: {
+    status: "READY" as const,
+    hydration_age_seconds: 12,
+    chips: [
+      { label: "daemon ✓", tone: "success" as const },
+      { label: "hydration 12s", tone: "muted" as const },
+    ],
+  },
+  regime: {
+    regime_key: "MID_IV",
+    regime_confidence: 0.8,
+    archetype_key: "RANGE",
+    archetype_confidence: 0.74,
+    signals: [{ key: "VRP", value: "+2.4σ", tone: "success" as const }],
+    tickers: [
+      { symbol: "SPX", price: 7041.28, change_pct: 0.24 },
+      { symbol: "VIX", price: 14.2, change_pct: -1.1 },
+      { symbol: "US500", price: 4321, change_pct: 0.1 },
+    ],
+  },
+  queue: [
+    {
+      candidate_id: "cand_abc123",
+      symbol: "SPX",
+      structure: "CCS",
+      dte: 7,
+      expiry: "2026-04-24",
+      legs_label: "7230/7180C",
+      max_profit: 1095,
+      max_loss: 3905,
+      pop: null,
+      confidence: 0.8,
+      spot_price: 7041.28,
+      pipeline: {
+        regime_key: "MID_IV",
+        archetype_key: "RANGE",
+        engine_key: "THETA",
+        engine_role: "primary" as const,
+        strategy_label: "Call Credit Spread",
+      },
+      market_analysis: { vrp: "+2.4σ", skew: "neutral", headline: null },
+      validation: { status: "APPROVE" as const, summary: "Ready to trade", age_minutes: 2 },
+      mode: "CONSIDERED" as const,
+      is_autopilot_pick: false,
+      created_at: "2026-04-17T13:31:00.000Z",
+    },
+  ],
+};
