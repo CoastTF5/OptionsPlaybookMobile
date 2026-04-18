@@ -9,14 +9,14 @@ function makeHeaders(authorization?: string): Headers {
 
 describe("verifyIngestAuth", () => {
   beforeEach(() => {
-    process.env.INGEST_SECRET = "test-secret-value";
+    process.env.MIRROR_INGEST_SECRET = "test-secret-value";
   });
 
   afterEach(() => {
-    delete process.env.INGEST_SECRET;
+    delete process.env.MIRROR_INGEST_SECRET;
   });
 
-  it("returns true when Bearer token matches INGEST_SECRET", () => {
+  it("returns true when Bearer token matches MIRROR_INGEST_SECRET", () => {
     expect(verifyIngestAuth(makeHeaders("Bearer test-secret-value"))).toBe(true);
   });
 
@@ -28,8 +28,8 @@ describe("verifyIngestAuth", () => {
     expect(verifyIngestAuth(makeHeaders("Bearer wrong-token"))).toBe(false);
   });
 
-  it("returns false when INGEST_SECRET is not set", () => {
-    delete process.env.INGEST_SECRET;
+  it("returns false when MIRROR_INGEST_SECRET is not set", () => {
+    delete process.env.MIRROR_INGEST_SECRET;
     expect(verifyIngestAuth(makeHeaders("Bearer test-secret-value"))).toBe(false);
   });
 });

@@ -2,12 +2,12 @@ import { timingSafeEqual } from "node:crypto";
 
 /**
  * Verifies that the incoming request carries a valid Bearer token matching
- * the INGEST_SECRET environment variable.
+ * the MIRROR_INGEST_SECRET environment variable.
  *
- * Fail-closed: returns false if INGEST_SECRET is not set.
+ * Fail-closed: returns false if MIRROR_INGEST_SECRET is not set.
  */
 export function verifyIngestAuth(headers: Headers): boolean {
-  const secret = process.env.INGEST_SECRET;
+  const secret = process.env.MIRROR_INGEST_SECRET;
   if (!secret) return false;
 
   const authorization = headers.get("authorization") ?? "";
