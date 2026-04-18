@@ -1,8 +1,8 @@
-# Options Playbook Mirror
+# OptionsPlaybookMobile
 
-A lightweight public read-only mirror of the Options Playbook trading dashboard.
-Receives snapshots from the private system via a secured ingest endpoint and serves
-them as a static-ish JSON feed — no auth required to read, auth required to write.
+A lightweight public read-only mobile view of the Options Playbook trading dashboard.
+Receives snapshots from the private system via a secured ingest endpoint — no auth
+required to read, bearer auth required to write.
 
 ## Stack
 
@@ -18,6 +18,10 @@ npm install
 npm run dev        # starts on :3001
 ```
 
+By default the page polls `/api/snapshot`. To view the app with hard-coded
+fixture data (useful when no DB / no pusher is available), set
+`NEXT_PUBLIC_DEMO_FIXTURE=true` in `.env.local`.
+
 For DB-dependent features set `DATABASE_URL` in `.env.local`.
 
 ## Running tests
@@ -29,37 +33,33 @@ npm test           # vitest run (no DB required)
 ## Deploy to Railway
 
 1. Create a new Railway project and link this repo.
-2. Add a **Postgres** plugin to the service — Railway injects `DATABASE_URL` automatically.
-3. Set the following environment variables in the Railway service settings:
+2. Add a **Postgres** plugin to the service — Railway injects `DATABASE_URL`
+   automatically. Until the plugin is attached the app still deploys; the
+   migration step is a no-op without `DATABASE_URL`.
+3. Set the following environment variables in the Railway service's Variables tab:
 
-   | Variable | Description |
+   | Variable | Purpose |
    |---|---|
-   | `INGEST_SECRET` | Shared bearer token — must match the private system's outbound secret |
-   | `PORT` | Set by Railway automatically; the start command respects `${PORT:-3001}` |
+   | `MIRROR_INGEST_SECRET` | Shared bearer token — must match the private pusher daemon's secret (`openssl rand -hex 32`) |
+   | `STALENESS_WARN_SECONDS` | Seconds before the stale banner turns amber (default `60`) |
+   | `STALENESS_STALE_SECONDS` | Seconds before the stale banner turns red (default `120`) |
+   | `NEXT_PUBLIC_DEMO_FIXTURE` | Optional. Set to `true` to render fixture data instead of polling `/api/snapshot` — useful before the pusher is live |
 
-4. Deploy. On first boot `npm run migrate` runs automatically and creates the
-   `mirror_snapshots` table. Subsequent deploys are idempotent (already-applied
-   migrations are skipped).
+4. Deploy. On boot `npm run migrate` runs; if `DATABASE_URL` is set it creates
+   the `mirror_snapshots` table (idempotent). The app listens on `$PORT` bound
+   to `0.0.0.0`.
 
-5. Verify the health check passes:
-   ```
-   GET https://<your-railway-domain>/api/snapshot
-   ```
-   Returns `404` (no data yet) or `200` (snapshot present) — both are healthy
-   from a connectivity standpoint. Railway's health check will pass on either `2xx`
-   status; set `healthcheckPath = "/api/snapshot"` (already in `railway.toml`).
+5. Verify `GET /api/health` returns `200 {"status":"ok"}` — this is the
+   healthcheck path configured in `railway.toml`.
 
 ## Secret rotation
 
-To rotate `INGEST_SECRET`:
-
 1. Generate a new secret: `openssl rand -hex 32`
-2. Update `INGEST_SECRET` in Railway service environment variables.
-3. Update the matching secret in the private Options Playbook system
-   (`MIRROR_INGEST_SECRET` env var or equivalent).
-4. Redeploy the Railway service so the new value is loaded.
-5. Confirm ingest resumes: check Railway logs for `204` responses from
-   `POST /api/ingest` within the next hydration cycle (~5 min).
+2. Update `MIRROR_INGEST_SECRET` in Railway and let the service restart.
+3. Update the matching secret in the pusher daemon (`MIRROR_INGEST_SECRET` env
+   var) and reload the launchd plist.
+4. Confirm ingest resumes: Railway logs should show `204` responses from
+   `POST /api/ingest` within the next push cycle (~20s).
 
-> There is no token revocation list — the old secret stops working the moment the
-> Railway service restarts with the new value.
+> The old secret stops working the moment the Railway service restarts with
+> the new value — no token revocation list is needed.

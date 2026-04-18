@@ -2,8 +2,8 @@ import "./globals.css";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Options Playbook Mirror",
-  description: "Read-only mirror of the Options Playbook Overview.",
+  title: "OptionsPlaybookMobile",
+  description: "Read-only mobile view of the Options Playbook Overview.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
