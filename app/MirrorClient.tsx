@@ -5,6 +5,7 @@ import { motion } from "motion/react";
 import { cn } from "@/lib/cn";
 import { MirrorStrip } from "@/components/MirrorStrip";
 import { MirrorTradeCard } from "@/components/MirrorTradeCard";
+import { TickerRow } from "@/components/TickerRow";
 import { StaleBanner } from "@/components/StaleBanner";
 import { AmdRegimePanel } from "@/components/AmdRegimePanel";
 import { MarketBriefingPanel } from "@/components/MarketBriefingPanel";
@@ -107,15 +108,47 @@ export function MirrorClient({
       : null;
 
   const payload = snapshot.kind === "ok" ? snapshot.data.payload : null;
+  const advisoryCount = advisories?.advisories.length ?? 0;
+  const queueCount = payload?.queue.length ?? 0;
+
+  const counts: Record<Tab, number | null> = {
+    signals: payload ? queueCount : null,
+    intel: advisories ? advisoryCount : null,
+    chat: null,
+  };
+
+  const headerKicker = TABS.find((t) => t.id === activeTab)?.label ?? "Signals";
+  const headerTitle =
+    activeTab === "signals"
+      ? (payload ? `${queueCount} ready` : "Loading…")
+      : activeTab === "intel"
+        ? (advisories ? `${advisoryCount} advisor${advisoryCount === 1 ? "y" : "ies"}` : "Loading…")
+        : "Ask anything";
 
   return (
     <div className="flex flex-col gap-0">
+      {/* Page header */}
+      <div className="mb-4 flex items-end justify-between">
+        <div>
+          <div className="text-[10px] uppercase tracking-[0.2em] text-muted font-bold">
+            {headerKicker}
+          </div>
+          <h1 className="mt-0.5 text-[22px] font-bold tracking-[-0.02em] text-primary">
+            {headerTitle}
+          </h1>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="h-1.5 w-1.5 rounded-full bg-tone-success animate-pulse" />
+          <span className="text-[10px] text-muted font-semibold">LIVE</span>
+        </div>
+      </div>
+
       {/* Staleness banner */}
       {snapshot.kind === "loading" && (
         <div className="text-tertiary text-sm">Loading…</div>
       )}
       {snapshot.kind === "error" && (
-        <div className="text-sm text-red-400 mb-2">{snapshot.message}</div>
+        <div className="text-sm text-tone-danger mb-2">{snapshot.message}</div>
       )}
       {snapshot.kind === "empty" && (
         <StaleBanner level="unknown" age_seconds={null} />
@@ -126,47 +159,52 @@ export function MirrorClient({
 
       {/* Ops + market strip (always visible if we have data) */}
       {payload && (
-        <MirrorStrip ops={payload.ops} regime={payload.regime} />
+        <>
+          <MirrorStrip ops={payload.ops} regime={payload.regime} />
+          <TickerRow tickers={payload.regime.tickers} />
+        </>
       )}
 
       {/* Tab bar */}
-      <div className="flex gap-0 mb-3 rounded-lg bg-surface shadow-glass-inset overflow-hidden">
-        {TABS.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={cn(
-              "flex-1 py-2 text-[10px] font-semibold uppercase tracking-widest transition-colors",
-              activeTab === tab.id
-                ? "text-primary bg-white/5"
-                : "text-muted hover:text-secondary"
-            )}
-          >
-            {tab.label}
-          </button>
-        ))}
+      <div className="flex gap-5 px-1 mb-3 border-b border-border">
+        {TABS.map((tab) => {
+          const active = activeTab === tab.id;
+          const count = counts[tab.id];
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                "text-[12px] font-semibold pb-2 transition-colors",
+                active
+                  ? "text-primary border-b-2 border-tone-info -mb-px"
+                  : "text-muted hover:text-secondary",
+              )}
+            >
+              {tab.label}
+              {count != null && (
+                <span className="num text-muted ml-1.5 font-normal">{count}</span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {/* ── SIGNALS TAB ── */}
       {activeTab === "signals" && (
         <motion.div key="signals" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
           {!payload ? (
-            <div className="rounded-lg bg-surface p-6 text-center text-[11px] text-tertiary shadow-glass-inset">
+            <div className="rounded-2xl bg-surface border border-border p-6 text-center text-[11px] text-tertiary">
               Waiting for trade data…
             </div>
           ) : payload.queue.length === 0 ? (
-            <div className="rounded-lg bg-surface p-6 text-center text-[11px] text-tertiary shadow-glass-inset">
+            <div className="rounded-2xl bg-surface border border-border p-6 text-center text-[11px] text-tertiary">
               No trade suggestions right now.
             </div>
           ) : (
-            <>
-              <div className="mb-2 text-[9px] text-muted px-1">
-                {payload.queue.length} suggestion{payload.queue.length !== 1 ? "s" : ""} — all shown, including flagged
-              </div>
-              {payload.queue.map((item) => (
-                <MirrorTradeCard key={item.candidate_id} item={item} />
-              ))}
-            </>
+            payload.queue.map((item) => (
+              <MirrorTradeCard key={item.candidate_id} item={item} />
+            ))
           )}
         </motion.div>
       )}
@@ -181,15 +219,15 @@ export function MirrorClient({
           <MarketBriefingPanel briefing={briefing?.briefing ?? null} />
 
           {/* Position advisories */}
-          <div className="mb-2 mt-1 text-[9px] uppercase tracking-widest text-muted px-1">
+          <div className="mb-2 mt-1 text-[9px] font-bold uppercase tracking-widest text-muted px-1">
             Position Advisories
           </div>
           {!advisories ? (
-            <div className="rounded-lg bg-surface px-3 py-2 shadow-glass-inset text-[10px] text-muted mb-2">
+            <div className="rounded-2xl bg-surface border border-border px-3 py-2.5 text-[10px] text-muted mb-2">
               Loading advisories…
             </div>
           ) : advisories.advisories.length === 0 ? (
-            <div className="rounded-lg bg-surface px-3 py-2 shadow-glass-inset text-[10px] text-muted mb-2">
+            <div className="rounded-2xl bg-surface border border-border px-3 py-2.5 text-[10px] text-muted mb-2">
               No open position advisories.
             </div>
           ) : (

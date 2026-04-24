@@ -46,7 +46,7 @@ export function MarketBriefingPanel({ briefing }: { briefing: BriefingCache | nu
 
   if (!briefing) {
     return (
-      <div className="rounded-lg bg-surface px-3 py-2 shadow-glass-inset mb-3 text-[10px] text-muted">
+      <div className="rounded-2xl bg-surface border border-border px-3 py-2.5 mb-3 text-[10px] text-muted">
         No ATHENA briefing available
       </div>
     );
@@ -60,16 +60,18 @@ export function MarketBriefingPanel({ briefing }: { briefing: BriefingCache | nu
     <motion.div
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-lg bg-surface shadow-glass-inset mb-3"
+      className="rounded-2xl bg-surface border border-border mb-3 overflow-hidden"
     >
       <button
         className="w-full flex items-center gap-2 px-3 pt-2.5 pb-2 text-left"
         onClick={() => setExpanded((v) => !v)}
       >
-        <span className="text-[9px] uppercase tracking-widest text-muted">ATHENA Briefing</span>
+        <span className="text-[9px] font-bold uppercase tracking-widest text-muted">
+          ATHENA Briefing
+        </span>
         <span className="text-[9px] text-muted ml-1">{timeAgo(briefing.ts)}</span>
         {briefing.key && (
-          <span className="text-[8px] rounded bg-white/5 px-1 py-[1px] text-tertiary font-mono ml-1 truncate max-w-[120px]">
+          <span className="num text-[9px] rounded bg-white/5 px-1.5 py-[1px] text-tertiary ml-1 truncate max-w-[120px]">
             {briefing.key}
           </span>
         )}
@@ -86,11 +88,11 @@ export function MarketBriefingPanel({ briefing }: { briefing: BriefingCache | nu
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="px-3 pb-3 text-[10px] text-secondary leading-relaxed whitespace-pre-wrap">
+            <div className="px-3 pb-3 text-[11px] text-secondary leading-relaxed whitespace-pre-wrap">
               {displayText}
               {!expanded && isLong && (
                 <button
-                  className="block mt-1 text-sky-400 hover:text-sky-300 text-[9px]"
+                  className="block mt-1 text-tone-info hover:opacity-80 text-[10px]"
                   onClick={(e) => { e.stopPropagation(); setExpanded(true); }}
                 >
                   Read more
@@ -99,10 +101,10 @@ export function MarketBriefingPanel({ briefing }: { briefing: BriefingCache | nu
             </div>
           </motion.div>
         ) : (
-          <motion.div key="preview" className="px-3 pb-3 text-[10px] text-secondary leading-relaxed">
+          <motion.div key="preview" className="px-3 pb-3 text-[11px] text-secondary leading-relaxed">
             {displayText}
             <button
-              className="block mt-1 text-sky-400 hover:text-sky-300 text-[9px]"
+              className="block mt-1 text-tone-info hover:opacity-80 text-[10px]"
               onClick={() => setExpanded(true)}
             >
               Read more

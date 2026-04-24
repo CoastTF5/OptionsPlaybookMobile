@@ -1,9 +1,8 @@
 import { MirrorClient } from "./MirrorClient";
 import { MirrorStrip } from "@/components/MirrorStrip";
 import { MirrorTradeCard } from "@/components/MirrorTradeCard";
+import { TickerRow } from "@/components/TickerRow";
 import { StaleBanner } from "@/components/StaleBanner";
-import { AmdRegimePanel } from "@/components/AmdRegimePanel";
-import { MarketBriefingPanel } from "@/components/MarketBriefingPanel";
 import { getFixtureSnapshot } from "@/lib/fixture";
 import { computeStaleness } from "@/lib/staleness";
 
@@ -18,13 +17,23 @@ function FixtureView() {
   });
   return (
     <>
+      <div className="mb-4 flex items-end justify-between">
+        <div>
+          <div className="text-[10px] uppercase tracking-[0.2em] text-muted font-bold">
+            Signals
+          </div>
+          <h1 className="mt-0.5 text-[22px] font-bold tracking-[-0.02em] text-primary">
+            {payload.queue.length} ready
+          </h1>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="h-1.5 w-1.5 rounded-full bg-tone-success animate-pulse" />
+          <span className="text-[10px] text-muted font-semibold">DEMO</span>
+        </div>
+      </div>
       <StaleBanner level={staleness.level} age_seconds={staleness.age_seconds} />
       <MirrorStrip ops={payload.ops} regime={payload.regime} />
-      <AmdRegimePanel status={null} phase={null} />
-      <MarketBriefingPanel briefing={null} />
-      <div className="mb-2 text-[9px] text-muted px-1">
-        {payload.queue.length} suggestions (demo fixture)
-      </div>
+      <TickerRow tickers={payload.regime.tickers} />
       {payload.queue.map((item) => (
         <MirrorTradeCard key={item.candidate_id} item={item} />
       ))}
@@ -39,14 +48,6 @@ export default function Page() {
 
   return (
     <main className="mx-auto max-w-[720px] p-4">
-      <div className="mb-3 flex items-baseline justify-between gap-2">
-        <h1 className="text-[11px] uppercase tracking-[0.18em] text-tertiary">
-          Options Advisory
-        </h1>
-        <span className="text-[9px] text-muted">
-          {demoMode ? "demo · fixture data" : "live · advisory only"}
-        </span>
-      </div>
       {demoMode ? (
         <FixtureView />
       ) : (

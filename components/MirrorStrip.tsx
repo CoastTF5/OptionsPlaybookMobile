@@ -1,11 +1,14 @@
-import { Chip } from "@/components/ui/Chip";
+"use client";
+
+import { motion, useReducedMotion } from "motion/react";
+import { cn } from "@/lib/cn";
 import type { Snapshot } from "@/lib/schema";
 
-function opsTone(status: Snapshot["ops"]["status"]): "success" | "warn" | "danger" | "muted" {
-  if (status === "READY") return "success";
-  if (status === "DEGRADED") return "warn";
-  if (status === "BLOCKED") return "danger";
-  return "muted";
+function opsDotColor(status: Snapshot["ops"]["status"]): string {
+  if (status === "READY") return "bg-tone-success";
+  if (status === "DEGRADED") return "bg-tone-warn";
+  if (status === "BLOCKED") return "bg-tone-danger";
+  return "bg-muted";
 }
 
 export function MirrorStrip({
@@ -15,41 +18,77 @@ export function MirrorStrip({
   ops: Snapshot["ops"];
   regime: Snapshot["regime"];
 }) {
+  const reduceMotion = useReducedMotion();
   const regimeConf =
     regime.regime_confidence != null ? Math.round(regime.regime_confidence * 100) : null;
   const archConf =
     regime.archetype_confidence != null ? Math.round(regime.archetype_confidence * 100) : null;
 
+  const vrpSignal = regime.signals.find((s) => s.tone === "success");
+  const skewSignal = regime.signals.find(
+    (s) => s.key.toLowerCase() === "skew" || s.key.toLowerCase().includes("skew"),
+  );
+
+  const dotColor = opsDotColor(ops.status);
+
   return (
-    <div className="mb-3 flex flex-wrap items-center gap-1.5 rounded-lg bg-surface px-3 py-2 shadow-glass-inset">
-      <Chip tone={opsTone(ops.status)}>● {ops.status}</Chip>
-      {ops.chips.map((chip, i) => (
-        <Chip key={`ops-${i}`} tone={chip.tone} title={chip.hint}>
-          {chip.label}
-        </Chip>
-      ))}
-      {regime.regime_key && (
-        <Chip tone="warn">
-          {regime.regime_key}
-          {regimeConf != null ? ` ${regimeConf}%` : ""}
-        </Chip>
+    <div className="rounded-2xl bg-surface border border-border p-3 mb-3 flex items-center gap-3">
+      <motion.span
+        aria-label={`Ops ${ops.status}`}
+        className={cn("h-[7px] w-[7px] rounded-full flex-shrink-0", dotColor)}
+        animate={
+          !reduceMotion && ops.status === "READY" ? { opacity: [0.45, 1, 0.45] } : undefined
+        }
+        transition={
+          !reduceMotion && ops.status === "READY"
+            ? { duration: 1.8, repeat: Infinity, ease: "easeInOut" }
+            : undefined
+        }
+      />
+
+      <div className="flex-1 min-w-0">
+        <div className="text-[9px] font-bold uppercase tracking-widest text-muted">
+          Regime
+        </div>
+        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+          {regime.regime_key ? (
+            <>
+              <span className="text-[13px] font-bold text-tone-warn">
+                {regime.regime_key}
+              </span>
+              {regimeConf != null && (
+                <span className="text-[10px] text-tertiary">({regimeConf}%)</span>
+              )}
+            </>
+          ) : (
+            <span className="text-[13px] text-muted">—</span>
+          )}
+          {regime.regime_key && regime.archetype_key && (
+            <span className="text-[11px] text-muted">→</span>
+          )}
+          {regime.archetype_key && (
+            <>
+              <span className="text-[13px] font-bold text-tone-info">
+                {regime.archetype_key}
+              </span>
+              {archConf != null && (
+                <span className="text-[10px] text-tertiary">({archConf}%)</span>
+              )}
+            </>
+          )}
+        </div>
+        {skewSignal && (
+          <div className="text-[10px] text-tertiary mt-0.5">
+            {skewSignal.key} {skewSignal.value}
+          </div>
+        )}
+      </div>
+
+      {vrpSignal && (
+        <span className="flex-shrink-0 rounded-full bg-tone-success-dim text-tone-success text-[10px] font-bold tracking-wide px-2.5 py-1 whitespace-nowrap">
+          {vrpSignal.key} {vrpSignal.value}
+        </span>
       )}
-      {regime.archetype_key && (
-        <Chip tone="success">
-          {regime.archetype_key}
-          {archConf != null ? ` ${archConf}%` : ""}
-        </Chip>
-      )}
-      {regime.signals.map((s, i) => (
-        <Chip key={`sig-${i}`} tone={s.tone ?? "muted"}>
-          {s.key} {s.value}
-        </Chip>
-      ))}
-      {regime.tickers.map((t, i) => (
-        <Chip key={`tk-${i}`} tone="muted">
-          {t.symbol} {t.price != null ? t.price.toLocaleString() : "—"}
-        </Chip>
-      ))}
     </div>
   );
 }
