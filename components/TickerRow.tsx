@@ -12,7 +12,7 @@ export function TickerRow({ tickers }: { tickers: Ticker[] }) {
   if (!tickers || tickers.length === 0) return null;
 
   return (
-    <div className="mb-3 flex gap-2 overflow-x-auto scrollbar-none snap-x">
+    <div className="mb-3 flex gap-2">
       {tickers.map((t) => {
         const change = t.change_pct ?? null;
         const isUp = change != null && change >= 0;
@@ -27,7 +27,7 @@ export function TickerRow({ tickers }: { tickers: Ticker[] }) {
         return (
           <div
             key={t.symbol}
-            className="flex-shrink-0 w-[60px] bg-surface border border-border rounded-xl p-2 snap-start"
+            className="flex-1 min-w-0 bg-surface border border-border rounded-xl p-2"
           >
             <div className="text-[10px] font-bold text-tertiary tracking-wider">
               {t.symbol}

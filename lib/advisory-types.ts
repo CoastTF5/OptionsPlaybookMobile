@@ -55,6 +55,12 @@ export interface BriefingResponse {
   error?: string;
 }
 
+export interface BriefingsListResponse {
+  ok: boolean;
+  briefings: BriefingCache[];
+  error?: string;
+}
+
 // ─── Position Advisories ──────────────────────────────────────────────────────
 
 export type AdvisoryType =

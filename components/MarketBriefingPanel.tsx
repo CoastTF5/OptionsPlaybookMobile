@@ -3,43 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import type { BriefingCache } from "@/lib/advisory-types";
-
-function extractText(payload: Record<string, unknown>): string {
-  // ATHENA stores briefings in various shapes. Walk common keys to find text.
-  const candidates = [
-    payload.summary,
-    payload.analysis,
-    payload.briefing,
-    payload.content,
-    payload.text,
-    payload.narrative,
-    payload.market_summary,
-    payload.output,
-    payload.response,
-  ];
-  for (const c of candidates) {
-    if (typeof c === "string" && c.trim().length > 0) return c.trim();
-  }
-  // Check nested sections
-  const sections = payload.sections as Record<string, unknown>[] | undefined;
-  if (Array.isArray(sections)) {
-    return sections
-      .map((s) => {
-        const title = typeof s.title === "string" ? `**${s.title}**` : "";
-        const body = typeof s.content === "string" ? s.content : typeof s.body === "string" ? s.body : "";
-        return [title, body].filter(Boolean).join("\n");
-      })
-      .join("\n\n");
-  }
-  return JSON.stringify(payload, null, 2).slice(0, 800);
-}
-
-function timeAgo(ts: string): string {
-  const diff = (Date.now() - new Date(ts).getTime()) / 60_000;
-  if (diff < 1) return "just now";
-  if (diff < 60) return `${Math.round(diff)}m ago`;
-  return `${Math.round(diff / 60)}h ago`;
-}
+import { extractText, relativeTime } from "@/lib/briefing";
 
 export function MarketBriefingPanel({ briefing }: { briefing: BriefingCache | null }) {
   const [expanded, setExpanded] = useState(false);
@@ -69,7 +33,7 @@ export function MarketBriefingPanel({ briefing }: { briefing: BriefingCache | nu
         <span className="text-[9px] font-bold uppercase tracking-widest text-muted">
           ATHENA Briefing
         </span>
-        <span className="text-[9px] text-muted ml-1">{timeAgo(briefing.ts)}</span>
+        <span className="text-[9px] text-muted ml-1">{relativeTime(briefing.ts)}</span>
         {briefing.key && (
           <span className="num text-[9px] rounded bg-white/5 px-1.5 py-[1px] text-tertiary ml-1 truncate max-w-[120px]">
             {briefing.key}

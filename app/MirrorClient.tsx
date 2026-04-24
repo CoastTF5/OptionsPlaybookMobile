@@ -11,9 +11,16 @@ import { AmdRegimePanel } from "@/components/AmdRegimePanel";
 import { MarketBriefingPanel } from "@/components/MarketBriefingPanel";
 import { AdvisoryCard } from "@/components/AdvisoryCard";
 import { ChatPanel } from "@/components/ChatPanel";
+import { BriefingsFeed } from "@/components/BriefingsFeed";
 import { computeStaleness } from "@/lib/staleness";
 import type { Snapshot } from "@/lib/schema";
-import type { AmdResponse, BriefingResponse, AdvisoriesResponse } from "@/lib/advisory-types";
+import type {
+  AmdResponse,
+  BriefingResponse,
+  AdvisoriesResponse,
+  BriefingsListResponse,
+  BriefingCache,
+} from "@/lib/advisory-types";
 
 // ─── Snapshot polling ─────────────────────────────────────────────────────────
 
@@ -36,6 +43,11 @@ async function fetchSnapshot(): Promise<FetchState<SnapshotResponse>> {
   }
 }
 
+type FetchResult<T> =
+  | { kind: "ok"; data: T }
+  | { kind: "missing" }
+  | { kind: "error" };
+
 async function fetchJson<T>(path: string): Promise<T | null> {
   try {
     const res = await fetch(path, { cache: "no-store" });
@@ -46,14 +58,26 @@ async function fetchJson<T>(path: string): Promise<T | null> {
   }
 }
 
+async function fetchJsonResult<T>(path: string): Promise<FetchResult<T>> {
+  try {
+    const res = await fetch(path, { cache: "no-store" });
+    if (res.status === 404) return { kind: "missing" };
+    if (!res.ok) return { kind: "error" };
+    return { kind: "ok", data: await res.json() as T };
+  } catch {
+    return { kind: "error" };
+  }
+}
+
 // ─── Tab definition ───────────────────────────────────────────────────────────
 
-type Tab = "signals" | "intel" | "chat";
+type Tab = "signals" | "briefings" | "intel" | "chat";
 
 const TABS: { id: Tab; label: string }[] = [
-  { id: "signals", label: "Signals" },
-  { id: "intel",   label: "Intel" },
-  { id: "chat",    label: "Chat" },
+  { id: "signals",   label: "Signals" },
+  { id: "briefings", label: "Briefings" },
+  { id: "intel",     label: "Intel" },
+  { id: "chat",      label: "Chat" },
 ];
 
 // ─── Main client component ────────────────────────────────────────────────────
@@ -71,6 +95,7 @@ export function MirrorClient({
   const [snapshot, setSnapshot] = useState<FetchState<SnapshotResponse>>({ kind: "loading" });
   const [amd, setAmd] = useState<AmdResponse | null>(null);
   const [briefing, setBriefing] = useState<BriefingResponse | null>(null);
+  const [briefingsList, setBriefingsList] = useState<BriefingCache[] | null>(null);
   const [advisories, setAdvisories] = useState<AdvisoriesResponse | null>(null);
 
   const tickSnapshot = useCallback(async () => {
@@ -79,14 +104,22 @@ export function MirrorClient({
   }, []);
 
   const tickSupabase = useCallback(async () => {
-    const [a, b, adv] = await Promise.all([
+    const [a, b, adv, list] = await Promise.all([
       fetchJson<AmdResponse>("/api/amd"),
       fetchJson<BriefingResponse>("/api/briefing"),
       fetchJson<AdvisoriesResponse>("/api/advisories"),
+      fetchJsonResult<BriefingsListResponse>("/api/briefings"),
     ]);
     if (a) setAmd(a);
     if (b) setBriefing(b);
     if (adv) setAdvisories(adv);
+
+    // Briefings feed with graceful fallback to single briefing if new route is missing.
+    if (list.kind === "ok" && list.data.ok && Array.isArray(list.data.briefings)) {
+      setBriefingsList(list.data.briefings);
+    } else if (list.kind === "missing") {
+      setBriefingsList(b?.briefing ? [b.briefing] : []);
+    }
   }, []);
 
   useEffect(() => {
@@ -110,20 +143,24 @@ export function MirrorClient({
   const payload = snapshot.kind === "ok" ? snapshot.data.payload : null;
   const advisoryCount = advisories?.advisories.length ?? 0;
   const queueCount = payload?.queue.length ?? 0;
+  const briefingsCount = briefingsList?.length ?? 0;
 
   const counts: Record<Tab, number | null> = {
     signals: payload ? queueCount : null,
+    briefings: briefingsList ? briefingsCount : null,
     intel: advisories ? advisoryCount : null,
     chat: null,
   };
 
-  const headerKicker = TABS.find((t) => t.id === activeTab)?.label ?? "Signals";
-  const headerTitle =
+  const headerKicker = (TABS.find((t) => t.id === activeTab)?.label ?? "Signals").toUpperCase();
+  const headerTitle: string =
     activeTab === "signals"
       ? (payload ? `${queueCount} ready` : "Loading…")
-      : activeTab === "intel"
-        ? (advisories ? `${advisoryCount} advisor${advisoryCount === 1 ? "y" : "ies"}` : "Loading…")
-        : "Ask anything";
+      : activeTab === "briefings"
+        ? (briefingsList ? `${briefingsCount} brief${briefingsCount === 1 ? "" : "s"}` : "Loading…")
+        : activeTab === "intel"
+          ? "Regime"
+          : "Assistant";
 
   return (
     <div className="flex flex-col gap-0">
@@ -133,7 +170,10 @@ export function MirrorClient({
           <div className="text-[10px] uppercase tracking-[0.2em] text-muted font-bold">
             {headerKicker}
           </div>
-          <h1 className="mt-0.5 text-[22px] font-bold tracking-[-0.02em] text-primary">
+          <h1
+            className="mt-0.5 text-[20px] font-bold text-primary"
+            style={{ letterSpacing: "-0.02em", whiteSpace: "nowrap" }}
+          >
             {headerTitle}
           </h1>
         </div>
@@ -166,7 +206,7 @@ export function MirrorClient({
       )}
 
       {/* Tab bar */}
-      <div className="flex gap-5 px-1 mb-3 border-b border-border">
+      <div className="flex gap-5 px-1 mb-3 border-b border-border overflow-x-auto scrollbar-none">
         {TABS.map((tab) => {
           const active = activeTab === tab.id;
           const count = counts[tab.id];
@@ -175,7 +215,7 @@ export function MirrorClient({
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={cn(
-                "text-[12px] font-semibold pb-2 transition-colors",
+                "text-[12px] font-semibold pb-2 transition-colors whitespace-nowrap flex-shrink-0",
                 active
                   ? "text-primary border-b-2 border-tone-info -mb-px"
                   : "text-muted hover:text-secondary",
@@ -206,6 +246,13 @@ export function MirrorClient({
               <MirrorTradeCard key={item.candidate_id} item={item} />
             ))
           )}
+        </motion.div>
+      )}
+
+      {/* ── BRIEFINGS TAB ── */}
+      {activeTab === "briefings" && (
+        <motion.div key="briefings" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <BriefingsFeed briefings={briefingsList ?? []} />
         </motion.div>
       )}
 
