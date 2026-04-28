@@ -75,6 +75,24 @@ export type AdvisoryType =
 export type AdvisorySeverity = "REVIEW" | "ACTION";
 export type AdvisoryStatus = "OPEN" | "ACKNOWLEDGED" | "RESOLVED" | "EXPIRED";
 
+export interface PositionLeg {
+  strike?: number | string;
+  right?: "C" | "P" | string;
+  action?: "BUY" | "SELL" | string;
+  ratio?: number;
+  expiry?: string;
+}
+
+export interface AdvisoryPosition {
+  legs: PositionLeg[] | null;
+  expiry: string | null;
+  entry_price: number | null;
+  cost_basis: number | null;
+  qty_open: number | null;
+  unrealized_pnl: number | null;
+  net_delta: number | null;
+}
+
 export interface PositionAdvisory {
   advisory_id: string;
   created_at: string;
@@ -88,6 +106,7 @@ export interface PositionAdvisory {
   recommended_action: Record<string, unknown>;
   cooldown_until: string;
   resolved_reason: string | null;
+  position?: AdvisoryPosition | null;
 }
 
 export interface AdvisoriesResponse {
