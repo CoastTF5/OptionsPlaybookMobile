@@ -4,7 +4,6 @@ import { motion } from "motion/react";
 import { cn } from "@/lib/cn";
 import type {
   PositionAdvisory,
-  AdvisoryType,
   AdvisorySeverity,
   PositionLeg,
 } from "@/lib/advisory-types";
@@ -26,12 +25,14 @@ function severityClasses(severity: AdvisorySeverity): ToneClasses {
   };
 }
 
-function advisoryIcon(type: AdvisoryType): string {
+function advisoryIcon(type: string): string {
   switch (type) {
     case "PROFIT_TARGET":              return "✓";
+    case "APEX_PROFIT":                return "✓";
     case "STOP_LOSS":                  return "!";
     case "DELTA_DRIFT":                return "Δ";
     case "ROLL_WINDOW":                return "↻";
+    case "AGENT_RECOMMENDATION":       return "★";
     case "DATA_STALE":                 return "·";
     case "PORTFOLIO_STALE":            return "·";
     case "POLICY_AUTHORITY_UNAVAILABLE": return "×";
@@ -71,9 +72,31 @@ const STRUCTURE_NAMES: Record<string, string> = {
   SPUT:  "Short Put",
 };
 
-function structureLabel(structure: string | null): string | null {
+function structureLabel(
+  structure: string | null,
+  legs: PositionLeg[] | null | undefined,
+): string | null {
   if (!structure) return null;
-  return STRUCTURE_NAMES[structure.toUpperCase()] ?? structure;
+  const upper = structure.toUpperCase();
+  if (STRUCTURE_NAMES[upper]) return STRUCTURE_NAMES[upper];
+
+  // VERTICAL is engine-generic — derive a friendlier name from leg composition.
+  if (upper === "VERTICAL" && legs && legs.length >= 2) {
+    const rights = new Set(legs.map((l) => (l.right ?? "").toString().toUpperCase()));
+    const sells = legs.filter((l) => (l.action ?? "").toString().toUpperCase() === "SELL");
+    const buys = legs.filter((l) => (l.action ?? "").toString().toUpperCase() === "BUY");
+    if (rights.size === 1 && sells.length === 1 && buys.length === 1) {
+      const right = [...rights][0];
+      const shortStrike = asNumber(sells[0].strike) ?? 0;
+      const longStrike = asNumber(buys[0].strike) ?? 0;
+      // Credit spread: short strike is closer to ATM than long strike.
+      // Call vertical with short < long → bear call (credit). Put with short > long → bull put.
+      if (right === "C") return shortStrike < longStrike ? "Bear Call Spread" : "Call Debit Spread";
+      if (right === "P") return shortStrike > longStrike ? "Bull Put Spread" : "Put Debit Spread";
+    }
+    return "Vertical Spread";
+  }
+  return structure;
 }
 
 function asNumber(v: unknown): number | null {
@@ -131,17 +154,20 @@ function formatLegs(legs: PositionLeg[] | null | undefined): string | null {
 
 function entryCreditDebit(
   entry: number | null,
-  legs: PositionLeg[] | null | undefined,
+  structure: string | null,
 ): { label: "credit" | "debit" | "premium"; value: number } | null {
   if (entry == null) return null;
-  // Convention varies, but for credit spreads the engine records entry_price as a positive
-  // credit amount per contract. Best-effort labeling: net SELL → credit, net BUY → debit.
-  let label: "credit" | "debit" | "premium" = "premium";
-  if (legs && legs.length > 0) {
-    const sells = legs.filter((l) => (l.action ?? "").toString().toUpperCase() === "SELL").length;
-    const buys = legs.filter((l) => (l.action ?? "").toString().toUpperCase() === "BUY").length;
-    if (sells > buys) label = "credit";
-    else if (buys > sells) label = "debit";
+  // Engine convention (verified against live data): negative entry_price means a net credit
+  // received at open (e.g. -1.20 for a 1.20 credit spread). Positive means a debit paid.
+  let label: "credit" | "debit" | "premium";
+  if (entry < 0) label = "credit";
+  else if (entry > 0) label = "debit";
+  else label = "premium";
+
+  // Override for known credit-spread structure codes when entry sign is ambiguous (zero).
+  const s = (structure ?? "").toUpperCase();
+  if (label === "premium" && (s === "PCS" || s === "CCS" || s === "BPS" || s === "BCS" || s === "IC" || s === "IB")) {
+    label = "credit";
   }
   return { label, value: Math.abs(entry) };
 }
@@ -178,12 +204,12 @@ function actionVerb(advisory: PositionAdvisory): string | null {
 export function AdvisoryCard({ advisory }: { advisory: PositionAdvisory }) {
   const badge = statusBadge(advisory.status);
   const sev = severityClasses(advisory.severity);
-  const struct = structureLabel(advisory.structure);
   const pos = advisory.position ?? null;
+  const struct = structureLabel(advisory.structure, pos?.legs);
 
   const legsLine = formatLegs(pos?.legs);
   const expiry = fmtDate(pos?.expiry ?? null);
-  const credit = entryCreditDebit(asNumber(pos?.entry_price), pos?.legs);
+  const credit = entryCreditDebit(asNumber(pos?.entry_price), advisory.structure);
 
   // Trigger metrics (varies by advisory_type)
   const snap = advisory.trigger_snapshot ?? {};

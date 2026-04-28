@@ -65,9 +65,11 @@ export interface BriefingsListResponse {
 
 export type AdvisoryType =
   | "PROFIT_TARGET"
+  | "APEX_PROFIT"
   | "STOP_LOSS"
   | "DELTA_DRIFT"
   | "ROLL_WINDOW"
+  | "AGENT_RECOMMENDATION"
   | "DATA_STALE"
   | "PORTFOLIO_STALE"
   | "POLICY_AUTHORITY_UNAVAILABLE";
