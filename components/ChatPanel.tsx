@@ -2,8 +2,49 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import ReactMarkdown, { type Components } from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/cn";
 import type { ChatMessage, ChatRequest, ChatResponse } from "@/lib/advisory-types";
+
+const MD_COMPONENTS: Components = {
+  p: ({ children }) => <p className="mb-1.5 last:mb-0">{children}</p>,
+  h1: ({ children }) => <h3 className="text-[12px] font-semibold text-primary mt-1 mb-1">{children}</h3>,
+  h2: ({ children }) => <h3 className="text-[12px] font-semibold text-primary mt-1 mb-1">{children}</h3>,
+  h3: ({ children }) => <h4 className="text-[11px] font-semibold text-primary mt-1 mb-0.5">{children}</h4>,
+  h4: ({ children }) => <h4 className="text-[11px] font-semibold text-primary mt-1 mb-0.5">{children}</h4>,
+  ul: ({ children }) => <ul className="list-disc pl-4 space-y-0.5 mb-1.5 last:mb-0 marker:text-muted">{children}</ul>,
+  ol: ({ children }) => <ol className="list-decimal pl-4 space-y-0.5 mb-1.5 last:mb-0 marker:text-muted">{children}</ol>,
+  li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+  strong: ({ children }) => <strong className="font-semibold text-primary">{children}</strong>,
+  em: ({ children }) => <em className="italic text-secondary">{children}</em>,
+  a: ({ href, children }) => (
+    <a href={href} target="_blank" rel="noreferrer" className="text-sky-300 underline underline-offset-2 hover:text-sky-200">
+      {children}
+    </a>
+  ),
+  code: ({ children, className }) => {
+    const isBlock = /language-/.test(className ?? "");
+    if (isBlock) return <code className={className}>{children}</code>;
+    return <code className="rounded bg-surface-elev px-1 py-[1px] font-mono text-[10px] text-sky-200">{children}</code>;
+  },
+  pre: ({ children }) => (
+    <pre className="my-1.5 rounded bg-background/80 p-2 overflow-x-auto font-mono text-[10px] text-secondary">
+      {children}
+    </pre>
+  ),
+  blockquote: ({ children }) => (
+    <blockquote className="border-l-2 border-white/10 pl-2 my-1.5 text-tertiary italic">{children}</blockquote>
+  ),
+  hr: () => <hr className="my-2 border-white/10" />,
+  table: ({ children }) => (
+    <div className="my-1.5 overflow-x-auto">
+      <table className="text-[10px] border-collapse">{children}</table>
+    </div>
+  ),
+  th: ({ children }) => <th className="border border-white/10 px-1.5 py-0.5 text-left font-semibold text-primary">{children}</th>,
+  td: ({ children }) => <td className="border border-white/10 px-1.5 py-0.5 text-secondary">{children}</td>,
+};
 
 const SUGGESTED_PROMPTS = [
   "What's the market regime right now?",
@@ -114,7 +155,15 @@ export function ChatPanel() {
                     : "bg-surface shadow-glass-inset text-secondary rounded-bl-sm"
                 )}
               >
-                <p className="whitespace-pre-wrap">{msg.content}</p>
+                {msg.role === "assistant" ? (
+                  <div className="markdown-body">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]} components={MD_COMPONENTS}>
+                      {msg.content}
+                    </ReactMarkdown>
+                  </div>
+                ) : (
+                  <p className="whitespace-pre-wrap">{msg.content}</p>
+                )}
                 <p className="text-[8px] text-muted mt-1 text-right">
                   {new Date(msg.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                 </p>
