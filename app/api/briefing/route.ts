@@ -9,14 +9,11 @@ export async function GET() {
     return NextResponse.json<BriefingResponse>({ ok: false, briefing: null, error: "supabase_disabled" }, { status: 503 });
   }
 
-  // agent_athena.caches stores briefings keyed by market condition bucket.
-  // Take the most recent cache entry — these are ATHENA's latest market analysis.
-  // NOTE: agent_athena schema must be listed in Supabase "Exposed schemas" settings.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const client = supabase as any;
-  const { data, error } = await client
-    .schema("agent_athena")
-    .from("caches")
+  // Reads from public.v_mobile_briefing_v1, the BriefingCache-shaped adapter
+  // over cognitive.premarket_analyses_v1 (where ATHENA actually writes).
+  // Migration: supabase/migrations/20260430000711_mobile_briefing_view_v1.sql
+  const { data, error } = await supabase
+    .from("v_mobile_briefing_v1")
     .select("cache_id,ts,key,payload")
     .order("ts", { ascending: false })
     .limit(1)

@@ -12,11 +12,11 @@ export async function GET() {
     );
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const client = supabase as any;
-  const { data, error } = await client
-    .schema("agent_athena")
-    .from("caches")
+  // Reads from public.v_mobile_briefing_v1, the BriefingCache-shaped adapter
+  // over cognitive.premarket_analyses_v1 (where ATHENA actually writes).
+  // Migration: supabase/migrations/20260430000711_mobile_briefing_view_v1.sql
+  const { data, error } = await supabase
+    .from("v_mobile_briefing_v1")
     .select("cache_id,ts,key,payload")
     .order("ts", { ascending: false })
     .limit(20);
