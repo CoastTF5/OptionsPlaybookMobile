@@ -24,6 +24,21 @@ fixture data (useful when no DB / no pusher is available), set
 
 For DB-dependent features set `DATABASE_URL` in `.env.local`.
 
+To point the app at the new cloud/mobile shaper feed, set:
+
+```bash
+MOBILE_SNAPSHOT_UPSTREAM_URL=https://<new-feed-host>/v1/snapshot
+MOBILE_SNAPSHOT_UPSTREAM_BEARER_TOKEN=<optional-bearer-token>
+MOBILE_SNAPSHOT_UPSTREAM_TIMEOUT_MS=4000
+MOBILE_SNAPSHOT_UPSTREAM_REQUIRED=false
+```
+
+Behavior:
+
+- If `MOBILE_SNAPSHOT_UPSTREAM_URL` is set, `/api/snapshot` reads upstream first.
+- If upstream fails and `MOBILE_SNAPSHOT_UPSTREAM_REQUIRED=false`, it falls back to local DB.
+- If upstream fails and `MOBILE_SNAPSHOT_UPSTREAM_REQUIRED=true`, `/api/snapshot` returns `503`.
+
 ## Running tests
 
 ```bash
@@ -41,6 +56,10 @@ npm test           # vitest run (no DB required)
    | Variable | Purpose |
    |---|---|
    | `MIRROR_INGEST_SECRET` | Shared bearer token — must match the private pusher daemon's secret (`openssl rand -hex 32`) |
+   | `MOBILE_SNAPSHOT_UPSTREAM_URL` | New cloud/mobile-shaper feed endpoint (example: `https://<host>/v1/snapshot`) |
+   | `MOBILE_SNAPSHOT_UPSTREAM_BEARER_TOKEN` | Optional bearer token for upstream snapshot feed |
+   | `MOBILE_SNAPSHOT_UPSTREAM_TIMEOUT_MS` | Optional timeout for upstream snapshot fetch (default `4000`) |
+   | `MOBILE_SNAPSHOT_UPSTREAM_REQUIRED` | Optional strict mode (`true` disables DB fallback when upstream fails) |
    | `STALENESS_WARN_SECONDS` | Seconds before the stale banner turns amber (default `60`) |
    | `STALENESS_STALE_SECONDS` | Seconds before the stale banner turns red (default `120`) |
    | `NEXT_PUBLIC_DEMO_FIXTURE` | Optional. Set to `true` to render fixture data instead of polling `/api/snapshot` — useful before the pusher is live |
